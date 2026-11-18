@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bingo de los números</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f4f1e8;color:#26353b;font-family:Arial,sans-serif}
+header{background:white;padding:18px 30px;border-bottom:5px solid #79aeb5;display:flex;justify-content:space-between;align-items:center}
+h1{margin:0;font-size:30px}
+.subtitle{margin:5px 0 0;color:#68757a;font-size:14px}
+.counter{background:#e7f2f3;border:2px solid #a8c9cd;border-radius:15px;padding:9px 18px;text-align:center}
+.counter b{display:block;font-size:28px}.counter span{font-size:11px;font-weight:bold}
+main{width:94%;max-width:1200px;margin:28px auto;display:grid;grid-template-columns:1fr 285px;gap:22px}
+.card{background:white;border-radius:22px;padding:28px;box-shadow:0 5px 20px #00000012}
+.label{font-size:12px;font-weight:900;color:#4d817f;letter-spacing:1px}
+.clue{margin-top:15px;min-height:310px;border:3px dashed #b7cfd2;border-radius:20px;background:#fbfcfa;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:35px}
+.type{font-size:15px;font-weight:900;color:#78aeb5;margin-bottom:18px}
+.question{font-size:31px;line-height:1.25;font-weight:900}
+.question strong{color:#e58b4e}
+.answer{font-size:62px;font-weight:900;color:#e58b4e;margin-top:22px;display:none}
+.answer.visible{display:block}
+.buttons{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:20px}
+button{border:0;border-radius:13px;padding:14px 20px;font-weight:900;font-size:14px;cursor:pointer}
+.primary{background:#78aeb5;color:white}.orange{background:#e99a5e;color:white}.green{background:#79a37f;color:white}.gray{background:#edf0ed;color:#33434a}
+.history h2{font-size:18px;margin:0}.history p{font-size:12px;color:#758085}
+.numbers{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;max-height:430px;overflow:auto}
+.ball{aspect-ratio:1;border-radius:50%;background:#f4f1e8;border:2px solid #d7d0c5;display:grid;place-items:center;font-weight:900}
+.ball.latest{background:#e99a5e;color:white;border-color:#d67e43}
+.info{margin-top:18px;background:#f8f7f2;border-radius:14px;padding:14px;font-size:12px;line-height:1.5;color:#657075}
+footer{width:94%;max-width:1200px;margin:0 auto 25px;font-size:12px;color:#707b7e;display:flex;justify-content:space-between}
+@media(max-width:850px){main{grid-template-columns:1fr}.question{font-size:24px}}
+</style>
+</head>
+<body>
+<header>
+<div>
+<h1>🎲 BINGO DE LOS NÚMEROS</h1>
+<div class="subtitle">Hasta 50 números · del 1 al 150 · ¡Las pistas aparecen mezcladas!</div>
+</div>
+<div class="counter"><b id="count">0</b><span>NÚMEROS SALIDOS · MÁX. 50</span></div>
+</header>
+
+<main>
+<section class="card">
+<div class="label">NUEVA PISTA</div>
+<div class="clue">
+<div class="type" id="type">¡LISTOS PARA JUGAR!</div>
+<div class="question" id="question">HACÉ CLIC EN <strong>“SACAR NÚMERO”</strong> PARA COMENZAR.</div>
+<div class="answer" id="answer"></div>
+</div>
+<div class="buttons">
+<button class="primary" onclick="drawNumber()">🎲 SACAR NÚMERO</button>
+<button class="orange" id="reveal" onclick="revealAnswer()" disabled>👀 REVELAR RESPUESTA</button>
+<button class="green" id="mark" onclick="markNumber()" disabled>✓ MARCAR EN EL CARTÓN</button>
+<button class="gray" onclick="resetGame()">↻ REINICIAR</button>
+</div>
+</section>
+
+<aside class="card history">
+<h2>NÚMEROS QUE YA SALIERON</h2>
+<p>Cada número aparece una sola vez.</p>
+<div class="numbers" id="numbers"></div>
+<div class="info"><b>PISTAS MEZCLADAS:</b><br>
+Número directo · valor posicional · composición · anterior/posterior · número misterioso.</div>
+</aside>
+</main>
+
+<footer>
+<span>1.º GRADO · MATEMÁTICA</span>
+<span>Máximo 50 números</span>
+</footer>
+
+<script>
+let available=[],played=[],current=null; const MAX_NUMBERS=50;
+const q=document.getElementById("question"),type=document.getElementById("type"),answer=document.getElementById("answer");
+const reveal=document.getElementById("reveal"),mark=document.getElementById("mark");
+
+function init(){
+available=Array.from({length:150},(_,i)=>i+1);
+played=[];
+current=null;current=null;document.getElementById("count").textContent=0;render();type.textContent="¡LISTOS PARA JUGAR!";q.innerHTML='HACÉ CLIC EN <strong>“SACAR NÚMERO”</strong> PARA COMENZAR.';answer.classList.remove("visible");answer.textContent="";reveal.disabled=true;mark.disabled=true;mark.textContent="✓ MARCAR EN EL CARTÓN";}
+function clue(n){
+let r=Math.floor(Math.random()*5);
+if(r===0)return ["NÚMERO DIRECTO",`EL NÚMERO ES <strong>${n}</strong>. ¿LO TENÉS EN TU CARTÓN?`];
+if(r===1){
+let c=Math.floor(n/100),d=Math.floor((n%100)/10),u=n%10;
+return ["VALOR POSICIONAL",n<100?`TENGO <strong>${d} DIECES</strong> Y <strong>${u} UNOS</strong>. ¿QUÉ NÚMERO SOY?`:`TENGO <strong>${c} CIEN</strong>, <strong>${d} DIECES</strong> Y <strong>${u} UNOS</strong>. ¿QUÉ NÚMERO SOY?`];
+}
+if(r===2){
+let parts=[];if(n>=100)parts.push(Math.floor(n/100)*100);if(n%100>=10)parts.push(Math.floor((n%100)/10)*10);if(n%10)parts.push(n%10);
+return ["COMPOSICIÓN",`SOY <strong>${parts.join(" + ")}</strong>. ¿QUÉ NÚMERO SOY?`];
+}
+if(r===3){
+if(n===150)return ["ANTERIOR / POSTERIOR",`SOY EL NÚMERO QUE VIENE <strong>DESPUÉS</strong> DEL <strong>149</strong>. ¿QUÉ NÚMERO SOY?`];
+return ["ANTERIOR / POSTERIOR",`SOY EL NÚMERO QUE VIENE <strong>DESPUÉS</strong> DEL <strong>${n-1}</strong>. ¿QUÉ NÚMERO SOY?`];
+}
+let a=Math.max(1,n-4),b=Math.min(150,n+4);
+return ["NÚMERO MISTERIOSO",`ESTOY ENTRE <strong>${a}</strong> Y <strong>${b}</strong> Y TERMINO EN <strong>${n%10}</strong>. ¿QUÉ NÚMERO SOY?`];
+}
+function drawNumber(){
+if(played.length>=MAX_NUMBERS){
+type.textContent="¡JUEGO COMPLETO!";
+q.innerHTML="YA SALIERON LOS <strong>50 NÚMEROS</strong>.";
+answer.classList.remove("visible");
+reveal.disabled=true;
+mark.disabled=true;
+return;
+}
+if(!available.length){
+type.textContent="¡NO HAY MÁS NÚMEROS!";
+q.textContent="SE AGOTARON LOS NÚMEROS DISPONIBLES.";
+return;
+}
+let i=Math.floor(Math.random()*available.length);
+current=available.splice(i,1)[0];
+played.push(current);
+let c=clue(current);
+type.textContent=c[0];
+q.innerHTML=c[1];
+answer.textContent=current;
+answer.classList.remove("visible");
+reveal.disabled=false;
+mark.disabled=true;
+mark.textContent="✓ MARCAR EN EL CARTÓN";
+document.getElementById("count").textContent=played.length;
+render();
+}
+function revealAnswer(){if(current!==null){answer.classList.add("visible");mark.disabled=false}}
+function markNumber(){if(current!==null){answer.classList.add("visible");mark.textContent="✓ NÚMERO MARCADO";mark.disabled=true}}
+function render(){let box=document.getElementById("numbers");box.innerHTML="";played.slice().reverse().forEach((n,i)=>{let d=document.createElement("div");d.className="ball"+(i===0?" latest":"");d.textContent=n;box.appendChild(d)})}
+function resetGame(){init()}
+init();
+</script>
+</body>
+</html>
